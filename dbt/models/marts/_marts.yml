@@ -1,0 +1,66 @@
+version: 2
+models:
+  - name: fct_tourism_monthly
+    description: One value per series, island and month, from the newest report that printed it.
+    columns:
+      - name: tourism_monthly_id
+        tests: [unique, not_null]
+      - name: value
+        tests:
+          - not_null
+          - dbt_expect_between:
+              arguments: {min_value: 0, max_value: 2000000}
+      - name: source_url
+        tests: [not_null]
+  - name: mart_island_monthly
+    tests:
+      - dbt_unique_combination:
+              arguments: {columns: ['island', 'period_date']}
+    columns:
+      - name: hotel_occupancy_pct
+        tests:
+          - dbt_expect_between:
+              arguments: {min_value: 0, max_value: 100}
+      - name: room_nights_available_k
+        tests:
+          - dbt_expect_between:
+              arguments: {min_value: 0, max_value: 200}
+      - name: room_nights_occupied_k
+        tests:
+          - dbt_expect_between:
+              arguments: {min_value: 0, max_value: 200}
+      - name: air_arrivals
+        tests:
+          - dbt_expect_between:
+              arguments: {min_value: 0, max_value: 200000}
+      - name: passengers_per_ship_call
+        tests:
+          - dbt_expect_between:
+              arguments: {min_value: 100, max_value: 7000}
+  - name: mart_annual
+    tests:
+      - dbt_unique_combination:
+              arguments: {columns: ['island', 'period_year']}
+  - name: mart_reconciliation
+    columns:
+      - name: status
+        tests:
+          - accepted_values:
+              arguments: {values: ['reconciled', 'reconciled (rounding)', 'mismatch', 'months missing']}
+  - name: mart_occupancy_check
+    description: Published occupancy rate vs. rate computed from room nights.
+    tests:
+      - assert_no_rows_where:
+          arguments: {condition: "flagged and period_date >= date '2025-01-01'"}
+          config: {severity: warn}
+  - name: mart_island_consistency
+    description: Published territory totals vs. the sum of the islands (source-data check).
+    tests:
+      - assert_no_rows_where:
+          arguments: {condition: "flagged"}
+          config: {severity: warn}
+  - name: mart_report_files
+    columns:
+      - name: media_id
+        tests: [unique]
+  - name: mart_revisions

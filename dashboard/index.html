@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>USVI Tourism Data Warehouse · Crucian Data Works</title>
+<meta name="description" content="Ten years of USVI Bureau of Economic Research monthly tourism reports - air and cruise arrivals, ship calls and hotel occupancy - read from 281 PDFs into a tested dbt and DuckDB warehouse. A Crucian Data Works portfolio project.">
+<link rel="icon" href="cdw-icon-app-tile.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://api.fontshare.com">
+<link href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@700,800&f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="demo-bar" role="note">
+  <span class="pill">Portfolio project 02</span>
+  <span>Built from public USVIBER reports. Not official statistics. Official figures are at <a href="https://usviber.org/" target="_blank" rel="noopener">usviber.org</a>.</span>
+</div>
+
+<header class="top">
+  <div class="wrap top-inner">
+    <div class="title">
+      <p class="eyebrow">U.S. Virgin Islands · Monthly tourism indicators</p>
+      <h1>Who is visiting, and where are they staying?</h1>
+      <p class="sub">USVIBER monthly reports <span id="range"></span></p>
+    </div>
+    <div class="controls" aria-label="Filters">
+      <div class="seg" role="radiogroup" aria-label="Island" id="islandSeg">
+        <button role="radio" data-i="USVI" aria-checked="true">Territory</button>
+        <button role="radio" data-i="STT_STJ" aria-checked="false">St. Thomas / St. John</button>
+        <button role="radio" data-i="STX" aria-checked="false">St. Croix</button>
+      </div>
+      <p class="applied" id="applied"></p>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="kpis" aria-label="Key metrics" id="kpis"></section>
+
+  <section class="card">
+    <header class="card-h row">
+      <div><h2>Monthly visitor arrivals</h2><p>Air visitors and cruise passengers · gaps are months USVIBER did not publish</p></div>
+      <div class="toggle" role="group" aria-label="Time range" id="rangeToggle">
+        <button data-r="36" aria-pressed="true">Last 3 years</button>
+        <button data-r="all" aria-pressed="false">All years</button>
+      </div>
+    </header>
+    <div class="chart tall"><canvas id="cArrivals" aria-label="Monthly air and cruise arrivals over time"></canvas></div>
+  </section>
+
+  <section class="grid two-uneven">
+    <article class="card">
+      <header class="card-h row">
+        <div><h2>Seasonality</h2><p id="heatSub">Air visitor arrivals by month, thousands</p></div>
+        <div class="toggle" role="group" aria-label="Measure" id="heatToggle">
+          <button data-m="air" aria-pressed="true">Air</button>
+          <button data-m="cruise" aria-pressed="false">Cruise</button>
+          <button data-m="occ" aria-pressed="false">Hotel %</button>
+        </div>
+      </header>
+      <div class="heat-wrap"><table class="heat" id="heat" aria-label="Seasonality heatmap"></table></div>
+      <div class="heat-legend"><span>Low</span><i></i><span>High</span><span class="muted">· striped = not published</span></div>
+    </article>
+    <article class="card">
+      <header class="card-h"><h2>Arrivals by year</h2><p id="annualSub">Calendar-year totals</p></header>
+      <div class="chart"><canvas id="cAnnual" aria-label="Annual air and cruise arrivals"></canvas></div>
+      <p class="fine-inline" id="annualNote"></p>
+    </article>
+  </section>
+
+  <section class="grid two">
+    <article class="card">
+      <header class="card-h"><h2>Hotel occupancy, two ways</h2><p>USVIBER's printed rate vs. room nights occupied ÷ available</p></header>
+      <div class="chart"><canvas id="cOcc" aria-label="Hotel occupancy rate, published and computed"></canvas></div>
+      <p class="bench" id="occNote"></p>
+    </article>
+    <article class="card">
+      <header class="card-h"><h2>Passengers per ship call</h2><p>Cruise passengers ÷ ship calls · a proxy for ship size</p></header>
+      <div class="chart"><canvas id="cShip" aria-label="Average cruise passengers per ship call by year"></canvas></div>
+      <p class="fine-inline">Calls are counted once per ship per island.</p>
+    </article>
+  </section>
+
+  <section class="card" id="quality">
+    <header class="card-h"><h2>What the tests caught</h2><p>Every report is checked before a number reaches this page</p></header>
+    <div class="dq" id="dqStats"></div>
+    <div class="grid two" style="gap:18px;margin-top:6px">
+      <div>
+        <h3 class="sub-h">Problems in the source files</h3>
+        <ul class="issues" id="issues"></ul>
+      </div>
+      <div>
+        <h3 class="sub-h">Biggest revisions after first publication</h3>
+        <div class="table-wrap">
+          <table class="tbl" id="tRev">
+            <thead><tr><th>Measure</th><th>Month</th><th class="n">First</th><th class="n">Latest</th><th class="n">Change</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <p class="fine-inline">Territory totals. USVIBER revises earlier months as late survey returns arrive; the warehouse keeps both versions.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="card how" id="how">
+    <div>
+      <p class="eyebrow">How this was built</p>
+      <h2 id="howTitle">281 PDFs to one tested warehouse</h2>
+      <p>USVIBER publishes each month's tourism numbers as one-page PDFs. A Python pipeline lists every file through the bureau's public media feed, downloads each one once, and reads every number by its position on the page. dbt models in DuckDB keep the newest printed value for each month, record every revision, and run 30 data tests. One test checks the result against the headline numbers on usviber.org.</p>
+      <p class="finding"><b>Found along the way:</b> files uploaded under the wrong name, room-night reports printed with last year's labels, island figures that don't add up to the territory total, and a June 2026 occupancy rate of 73.8% that the bureau's own room-night tables put at 44.1%.</p>
+    </div>
+    <ol>
+      <li><b>1</b>Discover reports via the WordPress REST API</li>
+      <li><b>2</b>Download with caching and SHA-256 fingerprints</li>
+      <li><b>3</b>Extract numbers by page position with PyMuPDF</li>
+      <li><b>4</b>Load raw text into DuckDB</li>
+      <li><b>5</b>Model, version and test with dbt</li>
+      <li><b>6</b>Export JSON for this page, refreshed monthly</li>
+    </ol>
+  </section>
+</main>
+
+<footer class="foot">
+  <div class="wrap foot-inner">
+    <div class="brand">
+      <img src="cdw-icon-reverse.svg" alt="" width="36" height="36">
+      <div><b>Crucian Data Works</b><span>Data engineering from St. Croix</span></div>
+    </div>
+    <div class="contact">Roger Simon · <a href="mailto:hello@cruciandataworks.com">hello@cruciandataworks.com</a></div>
+  </div>
+  <p class="wrap fine">Data: monthly Air Visitor Arrivals, Cruise Passenger Arrivals, Cruise Ship Calls, Hotel Occupancy Rates and Hotel Room Nights reports from the <a href="https://usviber.org/" target="_blank" rel="noopener">USVI Bureau of Economic Research</a>. Values are as printed in the newest report for each month; territory room nights are the sum of the islands. This page is an independent analysis and is not an official USVIBER publication. <span id="built"></span></p>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

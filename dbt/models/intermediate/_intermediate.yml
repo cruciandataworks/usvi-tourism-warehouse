@@ -1,0 +1,4 @@
+version: 2
+models:
+  - name: int_monthly_versions
+    description: Every printed copy of every monthly value, ranked from first published to latest.

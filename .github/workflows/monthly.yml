@@ -1,0 +1,95 @@
+# Runs the whole pipeline twice a month. USVIBER usually posts the previous month's
+# tourism reports in the first weeks of the month, so the 5th and 20th catch them.
+# Commits the refreshed dashboard data back to the repository, then publishes it.
+name: Monthly tourism data refresh
+
+on:
+  schedule:
+    - cron: "0 13 5 * *"    # 13:00 UTC on the 5th = 9:00 AM in St. Croix (AST, UTC-4)
+    - cron: "0 13 20 * *"   # second pass on the 20th for late uploads
+  workflow_dispatch:         # adds a "Run workflow" button for manual runs
+    inputs:
+      test_failure:
+        description: "Fail on purpose to test the failure alert"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  issues: write     # lets the failure alert open an issue
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    env:
+      FTP_SERVER: ${{ secrets.FTP_SERVER }}   # empty until the secret exists
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Simulated failure (test runs only)
+        if: ${{ inputs.test_failure }}
+        run: |
+          echo "::error::Test failure requested from the Run workflow button."
+          exit 1
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # Cache downloaded PDFs between runs so only new reports are fetched
+      - uses: actions/cache@v4
+        with:
+          path: data/raw/pdfs
+          key: usviber-pdfs-${{ github.run_id }}
+          restore-keys: usviber-pdfs-
+
+      - name: Run pipeline (discover, download, extract, load, dbt build, export)
+        run: python run_pipeline.py
+
+      - name: Commit refreshed data
+        run: |
+          git config user.name "cdw-bot"
+          git config user.email "hello@cruciandataworks.com"
+          git add data/raw/manifest.csv data/raw/downloads.csv data/interim dashboard/data
+          git diff --cached --quiet || git commit -m "Monthly USVIBER tourism data refresh"
+          git push
+
+      # Publish the refreshed dashboard to cruciandataworks.com (Hostinger) over FTP.
+      # Skipped automatically until the FTP secrets are added in
+      # GitHub: Settings > Secrets and variables > Actions.
+      - name: Upload dashboard to Hostinger
+        if: ${{ env.FTP_SERVER != '' }}
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./dashboard/
+          server-dir: ${{ vars.FTP_SERVER_DIR || '/public_html/projects/tourism-warehouse/' }}
+
+      # If any step above fails, open (or update) an issue assigned to the repository
+      # admin. GitHub emails the assignee, so a broken month never goes unnoticed.
+      - name: Alert on failure
+        if: ${{ failure() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ASSIGNEE: ${{ vars.ALERT_ASSIGNEE || 'OrlandoSpears' }}
+        run: |
+          gh label create refresh-failure --color C8553D --description "Monthly refresh failed" 2>/dev/null || true
+          body="The monthly USVIBER tourism data refresh failed on $(date -u '+%Y-%m-%d %H:%M UTC').
+
+          Run log: $RUN_URL
+
+          The website still shows the last good data. Close this issue once the cause is fixed."
+          open=$(gh issue list --label refresh-failure --state open --json number -q '.[0].number')
+          if [ -n "$open" ]; then
+            gh issue comment "$open" --body "$body"
+            gh issue edit "$open" --add-assignee "$ASSIGNEE" || true
+          else
+            gh issue create --title "Monthly tourism refresh failed" --label refresh-failure --assignee "$ASSIGNEE" --body "$body"
+          fi

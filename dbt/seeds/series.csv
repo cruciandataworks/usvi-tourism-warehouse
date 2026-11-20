@@ -1,0 +1,7 @@
+series_code,series,label,unit,additive,description
+A,air_arrivals,Air visitor arrivals,visitors,true,Visitors arriving by air (USVIBER table A)
+CP,cruise_passengers,Cruise passenger arrivals,passengers,true,Cruise passengers arriving (USVIBER table CP)
+CS,cruise_ship_calls,Cruise ship calls,ship calls,true,Cruise ships calling at a port (USVIBER table CS)
+H,hotel_occupancy_pct,Hotel occupancy rate,percent,false,Room nights occupied as a percent of room nights available (USVIBER table H)
+RA,room_nights_available,Hotel room nights available,thousand room nights,true,Room nights available in reporting hotels (USVIBER table RA)
+RN,room_nights_occupied,Hotel room nights occupied,thousand room nights,true,Room nights occupied in reporting hotels (USVIBER table RN)

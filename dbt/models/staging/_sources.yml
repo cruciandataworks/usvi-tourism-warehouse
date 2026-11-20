@@ -1,0 +1,12 @@
+version: 2
+sources:
+  - name: raw
+    description: Untouched copies of what step 4 loaded (everything is text).
+    tables:
+      - name: observations
+        description: One row per number read from a USVIBER monthly report PDF.
+      - name: report_manifest
+        description: Every monthly report PDF listed in USVIBER's WordPress media library.
+      - name: report_downloads
+      - name: extract_log
+        description: One row per PDF with the extraction status and any label problems found.

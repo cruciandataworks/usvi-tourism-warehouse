@@ -1,0 +1,35 @@
+version: 2
+models:
+  - name: stg_report_files
+    columns:
+      - name: media_id
+        tests: [unique, not_null]
+      - name: series_code
+        tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('series'), field: series_code}
+      - name: extract_status
+        tests:
+          - accepted_values:
+              arguments: {values: ['ok', 'failed']}
+  - name: stg_observations
+    tests:
+      - dbt_unique_combination:
+          arguments: {columns: ['media_id', 'row_kind', 'period_year', 'period_month', 'island']}
+    columns:
+      - name: row_kind
+        tests:
+          - accepted_values:
+              arguments: {values: ['month', 'ytd', 'annual']}
+      - name: island
+        tests:
+          - relationships:
+              arguments: {to: ref('islands'), field: island}
+      - name: period_month
+        tests:
+          - dbt_expect_between:
+              arguments: {min_value: 1, max_value: 12}
+      - name: value
+        tests:
+          - not_null

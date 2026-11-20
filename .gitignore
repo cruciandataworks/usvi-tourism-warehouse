@@ -1,0 +1,13 @@
+# Downloaded PDFs are re-creatable from the manifest (step 2), so keep them out of git
+data/raw/pdfs/
+# The database is rebuilt every run
+warehouse/
+# dbt build output
+dbt/target/
+dbt/logs/
+dbt/dbt_packages/
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+dbt/.user.yml

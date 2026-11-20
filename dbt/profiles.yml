@@ -1,0 +1,7 @@
+usvi_tourism:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: ../warehouse/tourism.duckdb
+      threads: 4
