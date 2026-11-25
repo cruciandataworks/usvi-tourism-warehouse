@@ -61,6 +61,10 @@ jobs:
       # Publish the refreshed dashboard to cruciandataworks.com (Hostinger) over FTP.
       # Skipped automatically until the FTP secrets are added in
       # GitHub: Settings > Secrets and variables > Actions.
+      # Tag CSS/JS links with a content hash so browsers never pair a new page with an old script.
+      - name: Version-stamp the dashboard's CSS and JS links
+        run: python pipeline/stamp_assets.py
+
       - name: Upload dashboard to Hostinger
         if: ${{ env.FTP_SERVER != '' }}
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
